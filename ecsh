@@ -50,7 +50,7 @@ HERE
 
 my $cmd = "ec2-describe-instances --filter tag:Name=$name";
 
-my @instances = `$cmd` or exit $!;
+my @instances = `$cmd`;
 
 my @matches = grep { /^INSTANCE.*/ } @instances;
 
