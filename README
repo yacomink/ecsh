@@ -1,0 +1,65 @@
+OVERVIEW
+========
+
+	If you have a lot of ec2 instances and several keypairs, maintaining your ssh config to 
+	connect to them all can be time consuming. Luckily, with the addition of Tags for ec2 
+	instances, there's an easy way to solve this problem.
+
+	This script initiates an ssh connecting to your instance based on a provided tag name. 
+	For example, let's say I've got this instance:
+
+		RESERVATION	r-123456	12343443443s	default
+		INSTANCE	i-12345g	ami-123456	ec2-111-11-11-111.compute-1.amazonaws.com	domU-11-11-11-11-11-11.compute-1.internal	running	my-keypair	c1.medium	2010-10-13T19:44:07+0000	us-east-1a	aki-11111	ari-11111		monitoring-enabled	11.11.11.11	11.11.11.11		ebs					paravirtual	
+		TAG	instance	i-111111	Name	my-awesome-server
+
+	You can connect with:
+
+		ecsh my-awesome-server
+	
+	Which will give you an ssh connection like if you've set up your keypairs:
+
+		ssh -i /path/to/my/keypair root@ec2-111-11-11-111.compute-1.amazonaws.com
+
+	Or:
+
+		ssh ec2-111-11-11-111.compute-1.amazonaws.com
+
+INSTALL
+=======
+
+	Put ecsh somewhere in your path
+	
+DEPENDENCIES
+============
+
+	1. ec2 api tools recent enough to support tags. 
+	(http://developer.amazonwebservices.com/connect/entry.jspa?externalID=351)
+	
+	2. The ec2 api scripts must also be in your path.
+	
+	4. perl
+
+USAGE
+=====
+
+	ecsh [options] [user@]InstanceName
+
+	InstanceName is the value of the ec2 tag "Name" applied to the instance you want to connect to
+
+	Arguments:
+		-s  A quoted string of ssh args. Example: -s "-L 25:*:25"
+		-h  Print this message
+
+	Using keypairs:
+
+		If you have a few keypairs for your ec2 instances and want to connect as root.
+		Create a file ~/.ecsh-keypairs in the format:
+
+			[keypair-name-1]=/path/to/keypair-1
+			[keypair-name-2]=/path/to/keypair-2
+
+		At this point this script can be called like so:
+
+			ecsh servername
+
+		Of course you can also accomplish this by using your ~/.ssh/config with one record per ec2 instance.

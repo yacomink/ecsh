@@ -1,0 +1,139 @@
+#!/usr/bin/perl
+
+use strict;
+use Getopt::Std;
+$Getopt::Std::STANDARD_HELP_VERSION = 1;
+
+my $KEYPAIR_FILE = $ENV{HOME}.'/.ec2-keypairs';
+
+my %opts;
+getopt('suh', \%opts);
+
+my $user;
+my $name = shift @ARGV or HELP_MESSAGE();
+
+if ( $name =~ m/(.*)\@(.*)/ )
+{
+	$name = $2;
+	$user = $1;
+}
+
+sub HELP_MESSAGE {
+		my $usage = <<HERE;
+Usage: ecsh [options] [user@]InstanceName
+
+InstanceName is the value of the ec2 tag "Name" applied to the instance you want to connect to
+
+Arguments:
+	-s  A quoted string of ssh args. Example: -s "-L 25:*:25"
+	-h  Print this message
+
+Using keypairs:
+
+	If you have a few keypairs for your ec2 instances and want to connect as root.
+	Create a file ~/.ecsh-keypairs in the format:
+
+		[keypair-name-1]=/path/to/keypair-1
+		[keypair-name-2]=/path/to/keypair-2
+
+	At this point this script can be called like so:
+
+		ecsh servername
+
+	Of course you can also accomplish this by using your ~/.ssh/config with one record per ec2 instance.
+
+HERE
+	print $usage;
+	exit;	
+}
+
+
+my $cmd = "ec2-describe-instances --filter tag:Name=$name";
+
+my @instances = `$cmd` or exit $!;
+
+my @matches = grep { /^INSTANCE.*/ } @instances;
+
+unless (scalar(@matches) >= 1)
+{
+	warn "Didn't find any instances tagged $name\n";
+	exit;
+}
+
+my @details = split(/\s+/, shift @matches);
+if (@matches)
+{
+	warn "You have two instances tagged with the Name $name.\nConnection to the first one listed.\n";
+}
+
+# Describe instances output:
+# INSTANCE	i-111111	ami-111111	ec2-111-11-11-111.compute-1.amazonaws.com	domU-11-11-11-11-11-11.compute-1.internal	running	my-keypair	c1.medium	2010-10-13T19:44:07+0000	us-east-1a	aki-1111	ari-111111		monitoring-enabled	111.11.11.111	11.111.11.11		ebs					paravirtual
+# Important columns (0-indexed):
+# 	1 - instanceid
+#	3 - hostname
+#   5 - status (should be running)
+#	6 - key-pair
+
+my ( $instanceid, $host, $status, $keypair ) = ( $details[1], $details[3], $details[5], $details[6] );
+
+# check keypair file for the keypair of the host unless a user is specified already
+if (!$user && !$opts{u} && -e $KEYPAIR_FILE)
+{
+	open FH, '<', $KEYPAIR_FILE;
+	while (<FH>)
+	{
+		chomp;
+
+		# look for the keypair for this instance
+		if (/$keypair=(.*)/)
+		{
+			$user = 'root';
+			$opts{i} = $1;
+			last;
+		}
+		
+	}
+	close FH;
+
+	unless ($opts{i})
+	{
+		print "No keypair $keypair found in $KEYPAIR_FILE attempting to proceed without it.\n";
+	}
+
+}
+
+my @cmd = ('ssh');
+
+# add ssh args
+if ($opts{s})
+{
+	push @cmd, $opts{s};
+}
+
+# add keypair
+if ($opts{i})
+{
+	push @cmd, "-i $opts{i}";
+}
+
+# include user from args, or leave blank
+if ($user)
+{
+	push @cmd, $user.'@'.$host;
+}
+elsif ($opts{u})
+{
+	push @cmd, $opts{u}.'@'.$host;
+}
+else
+{
+	push @cmd, $host;
+}
+
+my $ssh = join(' ', @cmd);
+
+print $ssh."\n";
+
+system($ssh);
+
+print "Done with ecsh session\n";
