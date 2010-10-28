@@ -47,8 +47,10 @@ ecsh [options] [user@]InstanceName
 InstanceName is the value of the ec2 tag "Name" applied to the instance you want to connect to
 
 Arguments:
-	-s  A quoted string of ssh args. Example: -s "-L 25:*:25"
+	-s  A quoted string of ssh args. Example: -s "-L 25:*:25" for a tunnel
 	-h  Print this message
+	-l  Lookup. Don't connect, just print out the connection info.
+	-c  SSH config. Instead of connecting, output connection info in the format used in ~/.ssh/config
 
 Using keypairs:
 
